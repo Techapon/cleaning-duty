@@ -1,0 +1,106 @@
+import { supabase } from './supabase.js';
+import { requireRole, logout } from './auth.js';
+
+const weekdays = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์'];
+const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+let current;
+let tasks = [];
+let duties = [];
+let pendingTask = null;
+let pendingUpload = null;
+
+const bangkokDate = () => {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts();
+  return `${parts.find((p) => p.type === 'year').value}-${parts.find((p) => p.type === 'month').value}-${parts.find((p) => p.type === 'day').value}`;
+};
+const thaiDate = () => new Intl.DateTimeFormat('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'full' }).format(new Date());
+const statusText = { booked: 'จองแล้ว · รอส่งหลักฐาน', submitted_on_time: 'ส่งตรงเวลา · รอตรวจ', submitted_late: 'ส่งช้า · รอตรวจ', passed: 'ผ่านเรียบร้อย', needs_improvement: 'ต้องแก้ไข', absent: 'ขาดเวร' };
+
+function notice(message, type = 'teal') {
+  const element = document.querySelector('#studentNotice');
+  element.textContent = message;
+  element.className = `mb-4 border-l-4 px-4 py-3 text-sm ${type === 'error' ? 'border-rose-500 bg-rose-50 text-rose-700' : 'border-teal bg-teal/5 text-teal'}`;
+}
+
+async function refresh() {
+  const date = bangkokDate();
+  const [taskResult, dutyResult] = await Promise.all([
+    supabase.from('clean_tasks').select('*').order('task_name').order('position'),
+    supabase.from('clean_duty').select('id,task_id,student_id,status,evidence_path,submitted_at,review_reason,students(name)').eq('duty_date', date)
+  ]);
+  if (taskResult.error || dutyResult.error) return notice(taskResult.error?.message || dutyResult.error?.message, 'error');
+  tasks = taskResult.data;
+  duties = dutyResult.data;
+  render();
+}
+
+function render() {
+  const myDuty = duties.find((duty) => duty.student_id === current.user.id);
+  const weekdayToken = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Bangkok', weekday: 'short' }).format(new Date());
+  const isoWeekday = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 }[weekdayToken];
+  const isMyDay = current.profile.duty_weekday === isoWeekday;
+  const available = tasks.length - duties.length;
+  document.querySelector('#availableCount').textContent = `เหลือ ${available} จาก ${tasks.length} ตำแหน่ง`;
+  document.querySelector('#todayLabel').textContent = thaiDate();
+  document.querySelector('#userName').textContent = current.profile.name;
+  document.querySelector('#weekdayValue').textContent = weekdays[current.profile.duty_weekday - 1];
+  document.querySelector('#studentDescription').textContent = isMyDay ? 'เลือกตำแหน่งที่รับผิดชอบ และส่งภาพเมื่อทำงานเสร็จ' : `วันนี้ไม่ใช่วันเวรของคุณ (วันเวร: ${weekdays[current.profile.duty_weekday - 1]})`;
+  document.querySelector('#myDutyStatus').textContent = myDuty ? statusText[myDuty.status] : 'ยังไม่ได้จอง';
+  document.querySelector('#myDutyMeta').textContent = myDuty?.review_reason || (myDuty ? 'คุณสามารถส่งรูปหลักฐานในตำแหน่งที่จอง' : 'ยังไม่มีรายการเวรในวันนี้');
+  document.querySelector('#dutyGrid').innerHTML = tasks.map((task) => {
+    const duty = duties.find((item) => item.task_id === task.id);
+    const mine = duty?.student_id === current.user.id;
+    const canBook = isMyDay && !myDuty && !duty;
+    const displayName = duty ? (mine ? 'คุณจองแล้ว' : `จองโดย ${duty.students?.name || 'นักเรียน'}`) : 'ว่าง';
+    return `<article class="duty-card ${duty ? 'taken' : ''} ${mine ? 'selected' : ''}"><div><span class="duty-icon">${task.task_name === 'กวาดห้อง' ? '🧹' : task.task_name === 'จัดโต๊ะ' ? '🪑' : task.task_name === 'ทิ้งขยะ' ? '♲' : '▤'}</span><h3 class="mt-4 font-bold">${task.task_name}</h3><p class="mt-1 text-sm text-slate-500">ตำแหน่ง ${task.position}</p><span class="mt-3 inline-block rounded-full px-2 py-1 text-xs font-bold ${duty ? 'bg-slate-200 text-slate-600' : 'bg-emerald-50 text-emerald-700'}">${displayName}</span></div>${canBook ? `<button class="book-button mt-4 w-full bg-teal px-3 py-2.5 text-sm font-bold text-white" data-task="${task.id}" type="button">จองตำแหน่งนี้</button>` : ''}${mine && !duty.evidence_path ? `<label class="mt-4 flex cursor-pointer justify-center bg-teal px-3 py-2.5 text-sm font-bold text-white">อัปโหลดหลักฐาน<input class="evidence-input hidden" type="file" data-duty="${duty.id}" accept="image/jpeg,image/png,image/webp" /></label>` : ''}${mine && duty.evidence_path ? `<p class="mt-4 border-t border-slate-100 pt-3 text-xs text-slate-500">ส่งเมื่อ ${new Intl.DateTimeFormat('th-TH', { timeStyle: 'short', timeZone: 'Asia/Bangkok' }).format(new Date(duty.submitted_at))}</p>` : ''}</article>`;
+  }).join('');
+}
+
+document.querySelector('#dutyGrid').addEventListener('click', (event) => {
+  const button = event.target.closest('.book-button');
+  if (!button) return;
+  pendingTask = tasks.find((task) => task.id === button.dataset.task);
+  document.querySelector('#bookingDetail').textContent = `${pendingTask.task_name} · ตำแหน่ง ${pendingTask.position}`;
+  document.querySelector('#bookingDate').textContent = thaiDate();
+  document.querySelector('#bookingDialog').showModal();
+});
+
+document.querySelector('#confirmBooking').addEventListener('click', async (event) => {
+  event.preventDefault();
+  if (!pendingTask) return;
+  const { error } = await supabase.rpc('book_clean_duty', { p_task_id: pendingTask.id });
+  document.querySelector('#bookingDialog').close();
+  pendingTask = null;
+  if (error) notice(error.message, 'error'); else notice('จองเวรสำเร็จแล้ว กรุณาส่งรูปหลักฐานก่อน 17:30 น.');
+  await refresh();
+});
+
+document.querySelector('#dutyGrid').addEventListener('change', (event) => {
+  const input = event.target.closest('.evidence-input');
+  if (!input) return;
+  const file = input.files[0];
+  if (!file) return;
+  if (!allowedTypes.includes(file.type) || file.size > 10 * 1024 * 1024) return notice('รองรับเฉพาะ JPG, PNG, WEBP และขนาดไม่เกิน 10 MB', 'error');
+  pendingUpload = { file, dutyId: input.dataset.duty, preview: URL.createObjectURL(file) };
+  document.querySelector('#uploadPreview').src = pendingUpload.preview;
+  document.querySelector('#uploadDetail').textContent = 'รูปหลักฐานการทำความสะอาด';
+  document.querySelector('#uploadFile').textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(2)} MB`;
+  document.querySelector('#uploadDialog').showModal();
+});
+
+document.querySelector('#cancelUpload').addEventListener('click', () => { if (pendingUpload) URL.revokeObjectURL(pendingUpload.preview); pendingUpload = null; });
+document.querySelector('#confirmUpload').addEventListener('click', async (event) => {
+  event.preventDefault();
+  if (!pendingUpload) return;
+  const extension = pendingUpload.file.name.split('.').pop().toLowerCase();
+  const path = `${current.user.id}/${pendingUpload.dutyId}/${crypto.randomUUID()}.${extension}`;
+  const { error: uploadError } = await supabase.storage.from('clean-evidence').upload(path, pendingUpload.file, { contentType: pendingUpload.file.type, upsert: false });
+  if (uploadError) { notice(uploadError.message, 'error'); return; }
+  const { error: submitError } = await supabase.rpc('submit_clean_evidence', { p_duty_id: pendingUpload.dutyId, p_evidence_path: path });
+  if (submitError) { await supabase.storage.from('clean-evidence').remove([path]); notice(submitError.message, 'error'); return; }
+  URL.revokeObjectURL(pendingUpload.preview); pendingUpload = null;
+  document.querySelector('#uploadDialog').close(); notice('ส่งหลักฐานเรียบร้อยแล้ว'); await refresh();
+});
+
+current = await requireRole('student');
+if (current) { document.querySelector('#logoutButton').addEventListener('click', logout); await refresh(); }

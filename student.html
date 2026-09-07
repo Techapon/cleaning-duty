@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ห้องเรียนสะอาด | นักเรียน</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { theme: { extend: { colors: { teal: '#0F766E', ink: '#16243A', mist: '#F4F7FB' }, fontFamily: { sans: ['Noto Sans Thai', 'Tahoma', 'sans-serif'] } } } }</script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body class="bg-mist font-sans text-ink">
+    <header class="border-b border-slate-200 bg-white">
+        <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 sm:px-8"><a
+                class="flex items-center gap-3" href="student.html"><span
+                    class="grid h-10 w-10 place-items-center rounded-lg bg-teal text-xl text-white">✦</span><span><strong
+                        class="block text-lg leading-none">ห้องเรียนสะอาด</strong><small
+                        class="mt-1 block text-slate-500">ม.5/17</small></span></a>
+            <div class="flex items-center gap-3"><span id="userName"
+                    class="hidden text-sm font-medium sm:block"></span><button id="logoutButton"
+                    class="border border-slate-300 px-3 py-2 text-sm font-bold hover:bg-slate-50"
+                    type="button">ออกจากระบบ</button></div>
+        </div>
+    </header>
+    <main class="mx-auto max-w-7xl px-5 py-8 sm:px-8">
+        <div class="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+            <div>
+                <p id="todayLabel" class="text-sm font-bold text-teal"></p>
+                <h1 class="mt-2 text-3xl font-bold sm:text-4xl">เวรของคุณวันนี้</h1>
+                <p id="studentDescription" class="mt-2 text-slate-600">กำลังโหลดข้อมูลเวร...</p>
+            </div>
+            <div class="border border-amber-200 bg-amber-50 px-4 py-3">
+                <p class="text-xs font-bold text-amber-800">กำหนดส่งหลักฐาน</p>
+                <p class="mt-1 font-bold text-amber-950">17:30 น.</p>
+            </div>
+        </div>
+        <div class="grid gap-6 lg:grid-cols-[1fr_290px]">
+            <section>
+                <div class="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                    <div>
+                        <h2 class="text-lg font-bold">ตำแหน่งเวรวันนี้</h2>
+                        <p class="mt-1 text-sm text-slate-500">จองได้หนึ่งตำแหน่งเฉพาะวันเวรของคุณ</p>
+                    </div><span id="availableCount"
+                        class="w-fit rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-bold text-emerald-700"></span>
+                </div>
+                <div id="studentNotice" class="mb-4 hidden border-l-4 px-4 py-3 text-sm"></div>
+                <div id="dutyGrid" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"></div>
+            </section>
+            <aside class="border border-slate-200 bg-white p-5 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <h2 class="font-bold">สถานะของฉัน</h2><span
+                        class="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold">วันนี้</span>
+                </div>
+                <div class="mt-5 border-l-4 border-teal pl-4">
+                    <p class="text-sm text-slate-500">รายการเวร</p>
+                    <p id="myDutyStatus" class="mt-1 font-bold">ยังไม่ได้จอง</p>
+                    <p id="myDutyMeta" class="mt-1 text-xs leading-5 text-slate-500"></p>
+                </div>
+                <div class="mt-5 border-t border-slate-100 pt-5">
+                    <p class="text-sm font-bold">วันเวรประจำสัปดาห์</p>
+                    <p id="weekdayValue" class="mt-2 text-teal"></p>
+                </div>
+            </aside>
+        </div>
+    </main>
+    <dialog id="bookingDialog" class="modal">
+        <form method="dialog" class="p-6">
+            <p class="text-sm font-bold text-teal">ตรวจสอบก่อนจอง</p>
+            <h2 class="mt-1 text-xl font-bold">ยืนยันการจองเวร</h2>
+            <div class="mt-5 border-l-4 border-teal bg-teal/5 p-4">
+                <p id="bookingDetail" class="font-bold"></p>
+                <p id="bookingDate" class="mt-1 text-sm text-slate-600"></p>
+            </div>
+            <p class="mt-5 text-sm leading-6 text-slate-600">เมื่อยืนยันแล้ว ระบบจะบันทึกตำแหน่งนี้ให้คุณทันที</p>
+            <div class="mt-6 flex justify-end gap-3"><button
+                    class="border border-slate-300 px-4 py-2.5 text-sm font-bold"
+                    value="cancel">กลับไปเลือก</button><button id="confirmBooking"
+                    class="bg-teal px-4 py-2.5 text-sm font-bold text-white" value="default">ยืนยันการจอง</button></div>
+        </form>
+    </dialog>
+    <dialog id="uploadDialog" class="modal">
+        <form method="dialog" class="p-6">
+            <p class="text-sm font-bold text-teal">ตรวจสอบก่อนส่ง</p>
+            <h2 class="mt-1 text-xl font-bold">ยืนยันการส่งหลักฐาน</h2><img id="uploadPreview"
+                class="mt-5 aspect-[16/10] w-full object-cover" alt="ภาพที่เลือก" />
+            <div class="mt-4 border-y border-slate-100 py-3 text-sm">
+                <p id="uploadDetail" class="font-bold"></p>
+                <p id="uploadFile" class="mt-1 break-all text-slate-500"></p>
+                <p class="mt-1 text-xs text-slate-400">ระบบจะบันทึกเวลาเมื่อยืนยันการส่ง</p>
+            </div>
+            <div class="mt-5 flex justify-end gap-3"><button id="cancelUpload"
+                    class="border border-slate-300 px-4 py-2.5 text-sm font-bold"
+                    value="cancel">เลือกรูปใหม่</button><button id="confirmUpload"
+                    class="bg-teal px-4 py-2.5 text-sm font-bold text-white" value="default">ยืนยันส่งหลักฐาน</button>
+            </div>
+        </form>
+    </dialog>
+    <script type="module" src="js/student.js"></script>
+</body>
+
+</html>
