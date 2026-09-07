@@ -59,6 +59,12 @@
             </div>
             <div id="inspectionList" class="divide-y divide-slate-100"></div>
         </section>
+        <section class="mt-7 overflow-hidden border border-slate-200 bg-white shadow-sm">
+            <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <h2 class="font-bold">นักเรียนที่ยังไม่ทำเวรวันนี้</h2><span id="missingCount" class="text-sm text-slate-500"></span>
+            </div>
+            <div id="missingList" class="divide-y divide-slate-100"></div>
+        </section>
         <section class="mt-7 border border-slate-200 bg-white shadow-sm">
             <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
                 <div>
@@ -75,7 +81,7 @@
             <p class="text-sm font-bold text-teal">ตรวจผลงาน</p>
             <h2 id="reviewName" class="mt-1 text-xl font-bold"></h2>
             <p id="reviewDetail" class="mt-1 text-sm text-slate-500"></p><img id="reviewImage"
-                class="mt-5 aspect-[16/10] w-full object-cover" alt="รูปหลักฐาน" /><label
+                class="mt-5 aspect-[16/10] w-full object-cover cursor-zoom-in hover:opacity-90 transition-opacity" alt="รูปหลักฐาน" /><label
                 class="mt-5 block text-sm font-bold">ผลการประเมิน<select id="reviewStatus"
                     class="mt-2 w-full border border-slate-300 px-3 py-3 outline-none focus:border-teal">
                     <option value="passed">ผ่านเรียบร้อย</option>
@@ -107,6 +113,9 @@
             </div>
             <div id="scheduleRows" class="mt-5 space-y-4"></div>
         </div>
+    </dialog>
+    <dialog id="lightboxDialog" class="m-auto w-full max-w-5xl bg-transparent p-0 outline-none backdrop:bg-slate-900/90">
+        <img id="lightboxImage" class="max-h-screen w-full cursor-zoom-out object-contain" alt="รูปเต็ม" />
     </dialog>
     <script type="module" src="js/teacher.js"></script>
 </body>

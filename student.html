@@ -87,7 +87,7 @@
         <form method="dialog" class="p-6">
             <p class="text-sm font-bold text-teal">ตรวจสอบก่อนส่ง</p>
             <h2 class="mt-1 text-xl font-bold">ยืนยันการส่งหลักฐาน</h2><img id="uploadPreview"
-                class="mt-5 aspect-[16/10] w-full object-cover" alt="ภาพที่เลือก" />
+                class="mt-5 aspect-[16/10] w-full object-cover cursor-zoom-in hover:opacity-90 transition-opacity" alt="ภาพที่เลือก" />
             <div class="mt-4 border-y border-slate-100 py-3 text-sm">
                 <p id="uploadDetail" class="font-bold"></p>
                 <p id="uploadFile" class="mt-1 break-all text-slate-500"></p>
@@ -99,6 +99,21 @@
                     class="bg-teal px-4 py-2.5 text-sm font-bold text-white" value="default">ยืนยันส่งหลักฐาน</button>
             </div>
         </form>
+    </dialog>
+    <dialog id="viewImageDialog" class="modal">
+        <div class="p-6">
+            <div class="flex items-start justify-between">
+                <div>
+                    <p class="text-sm font-bold text-teal">ผลงานของคุณ</p>
+                    <h2 class="mt-1 text-xl font-bold">รูปหลักฐาน</h2>
+                </div><button id="closeViewImage" class="grid h-9 w-9 place-items-center border border-slate-300 text-lg hover:bg-slate-50"
+                    type="button">×</button>
+            </div>
+            <img id="viewImagePreview" class="mt-5 aspect-[16/10] w-full object-cover cursor-zoom-in hover:opacity-90 transition-opacity" alt="รูปที่ส่ง" />
+        </div>
+    </dialog>
+    <dialog id="lightboxDialog" class="m-auto w-full max-w-5xl bg-transparent p-0 outline-none backdrop:bg-slate-900/90">
+        <img id="lightboxImage" class="max-h-screen w-full cursor-zoom-out object-contain" alt="รูปเต็ม" />
     </dialog>
     <script type="module" src="js/student.js"></script>
 </body>

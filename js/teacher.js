@@ -29,6 +29,7 @@ async function refresh() {
   todayDuties = await Promise.all(dutiesResult.data.map(async (duty) => ({ ...duty, signedUrl: await signedUrl(duty.evidence_path) })));
   renderDashboard();
   renderDuties();
+  renderMissing(studentsResult.data);
   renderRoster(studentsResult.data);
 }
 
@@ -45,6 +46,24 @@ function renderDashboard() {
 function renderDuties() {
   const list = document.querySelector('#inspectionList');
   list.innerHTML = todayDuties.length ? todayDuties.map((duty) => `<article class="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between"><div class="flex min-w-0 items-center gap-3">${duty.signedUrl ? `<img class="evidence-thumb" src="${duty.signedUrl}" alt="รูปหลักฐาน" />` : `<div class="grid evidence-thumb place-items-center bg-slate-100 text-xl text-slate-400">—</div>`}<div class="min-w-0"><p class="font-bold">${duty.students.name}</p><p class="text-sm text-slate-500">${duty.clean_tasks.task_name} · ตำแหน่ง ${duty.clean_tasks.position}</p><p class="mt-1 text-xs text-slate-400">${duty.submitted_at ? `ส่งเมื่อ ${new Intl.DateTimeFormat('th-TH', { timeStyle: 'short', timeZone: 'Asia/Bangkok' }).format(new Date(duty.submitted_at))}` : 'ยังไม่มีรูปหลักฐาน'}</p></div></div><div class="flex items-center gap-3"><span class="rounded-full px-2.5 py-1 text-xs font-bold ${badge[duty.status]}">${label[duty.status]}</span>${duty.signedUrl ? `<button class="review-button border border-slate-300 px-3 py-2 text-sm font-bold hover:bg-slate-50" data-duty="${duty.id}" type="button">ตรวจงาน</button>` : ''}</div></article>`).join('') : '<p class="px-5 py-8 text-center text-slate-500">ยังไม่มีการจองเวรในวันนี้</p>';
+}
+
+function renderMissing(students) {
+  const weekdayToken = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Bangkok', weekday: 'short' }).format(new Date());
+  const isoWeekday = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 }[weekdayToken];
+  
+  const onDutyStudents = students.filter(s => s.duty_weekday === isoWeekday);
+  const missingStudents = onDutyStudents.map(student => {
+    const duty = todayDuties.find(d => d.student_id === student.id);
+    if (!duty) return { student, statusText: 'ยังไม่ได้จองเวร', statusColor: 'text-slate-500' };
+    if (duty.status === 'booked') return { student, statusText: `จองแล้ว (${duty.clean_tasks.task_name}) แต่ยังไม่ส่ง`, statusColor: 'text-amber-600' };
+    return null;
+  }).filter(Boolean);
+
+  document.querySelector('#missingCount').textContent = `${missingStudents.length} คน`;
+  document.querySelector('#missingList').innerHTML = missingStudents.length 
+    ? missingStudents.map(m => `<div class="flex items-center justify-between px-5 py-4"><p class="font-bold">${m.student.name}</p><span class="text-sm font-medium ${m.statusColor}">${m.statusText}</span></div>`).join('')
+    : '<p class="px-5 py-8 text-center text-emerald-600">เยี่ยมมาก! ทุกคนจองเวรและส่งงานแล้ว</p>';
 }
 
 function renderRoster(students) {
@@ -82,6 +101,15 @@ document.querySelector('#reviewForm').addEventListener('submit', async (event) =
 
 document.querySelector('#showSchedule').addEventListener('click', () => document.querySelector('#scheduleDialog').showModal());
 document.querySelector('#closeSchedule').addEventListener('click', () => document.querySelector('#scheduleDialog').close());
+
+document.querySelector('#reviewImage').addEventListener('click', (e) => {
+  document.querySelector('#lightboxImage').src = e.target.src;
+  document.querySelector('#lightboxDialog').showModal();
+});
+document.querySelector('#lightboxImage').addEventListener('click', () => document.querySelector('#lightboxDialog').close());
+document.querySelector('#lightboxDialog').addEventListener('click', (e) => {
+  if (e.target === document.querySelector('#lightboxDialog')) document.querySelector('#lightboxDialog').close();
+});
 
 current = await requireRole('teacher');
 if (current) { document.querySelector('#userName').textContent = current.profile.name; document.querySelector('#classroomName').textContent = current.profile.classroom; document.querySelector('#todayLabel').textContent = thaiDate(); document.querySelector('#logoutButton').addEventListener('click', logout); await refresh(); }
