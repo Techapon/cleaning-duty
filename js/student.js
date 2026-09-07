@@ -28,16 +28,27 @@ function notice(message, type = 'teal') {
   element.className = `mb-4 border-l-4 px-4 py-3 text-sm ${type === 'error' ? 'border-rose-500 bg-rose-50 text-rose-700' : 'border-teal bg-teal/5 text-teal'}`;
 }
 
+function showLoader() { 
+  const loader = document.querySelector('#loader');
+  if (loader) { loader.classList.remove('hidden', 'opacity-0'); }
+}
+function hideLoader() {
+  const loader = document.querySelector('#loader');
+  if (loader) { loader.classList.add('opacity-0'); setTimeout(() => loader.classList.add('hidden'), 300); }
+}
+
 async function refresh() {
+  showLoader();
   const date = bangkokDate();
   const [taskResult, dutyResult] = await Promise.all([
     supabase.from('clean_tasks').select('*').order('task_name').order('position'),
     supabase.from('clean_duty').select('id,task_id,student_id,status,evidence_path,submitted_at,review_reason,students(name)').eq('duty_date', date)
   ]);
-  if (taskResult.error || dutyResult.error) return notice(taskResult.error?.message || dutyResult.error?.message, 'error');
+  if (taskResult.error || dutyResult.error) { hideLoader(); return notice(taskResult.error?.message || dutyResult.error?.message, 'error'); }
   tasks = taskResult.data;
   duties = await Promise.all(dutyResult.data.map(async (duty) => ({ ...duty, signedUrl: await signedUrl(duty.evidence_path) })));
   render();
+  hideLoader();
 }
 
 function render() {

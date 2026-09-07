@@ -15,6 +15,12 @@
 </head>
 
 <body class="bg-mist font-sans text-ink">
+    <div id="loader" class="fixed inset-0 z-[100] grid place-items-center bg-white/80 backdrop-blur-sm transition-opacity duration-300">
+        <div class="flex flex-col items-center">
+            <svg class="h-8 w-8 animate-spin text-teal" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            <p class="mt-3 text-sm font-bold text-slate-600">กำลังโหลดข้อมูล...</p>
+        </div>
+    </div>
     <header class="border-b border-slate-200 bg-white">
         <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 sm:px-8"><a
                 class="flex items-center gap-3" href="teacher.html"><span
@@ -30,7 +36,10 @@
     <main class="mx-auto max-w-7xl px-5 py-8 sm:px-8">
         <div class="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div>
-                <p id="todayLabel" class="text-sm font-bold text-teal"></p>
+                <div class="flex items-center gap-3">
+                    <input type="date" id="datePicker" class="text-sm font-bold text-teal bg-teal/5 border border-teal/20 rounded px-2 py-1.5 outline-none focus:border-teal" />
+                    <p id="todayLabel" class="text-sm font-bold text-teal"></p>
+                </div>
                 <h1 class="mt-2 text-3xl font-bold sm:text-4xl">ตรวจเวรประจำวัน</h1>
                 <p class="mt-2 text-slate-600">ติดตามการจอง การส่งหลักฐาน และประเมินผลงานของนักเรียน</p>
             </div><button id="showSchedule"
@@ -55,13 +64,13 @@
         </div>
         <section class="mt-7 overflow-hidden border border-slate-200 bg-white shadow-sm">
             <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-                <h2 class="font-bold">รายการเวรวันนี้</h2><span id="dutyCount" class="text-sm text-slate-500"></span>
+                <h2 class="font-bold">รายการเวร</h2><span id="dutyCount" class="text-sm text-slate-500"></span>
             </div>
             <div id="inspectionList" class="divide-y divide-slate-100"></div>
         </section>
         <section class="mt-7 overflow-hidden border border-slate-200 bg-white shadow-sm">
             <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-                <h2 class="font-bold">นักเรียนที่ยังไม่ทำเวรวันนี้</h2><span id="missingCount" class="text-sm text-slate-500"></span>
+                <h2 class="font-bold">นักเรียนที่ยังไม่ทำเวร</h2><span id="missingCount" class="text-sm text-slate-500"></span>
             </div>
             <div id="missingList" class="divide-y divide-slate-100"></div>
         </section>

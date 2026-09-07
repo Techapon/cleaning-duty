@@ -5,12 +5,16 @@ const weekdays = ['จันทร์', 'อังคาร', 'พุธ', 'พ�
 let current;
 let todayDuties = [];
 let selectedDuty = null;
+let selectedDate = bangkokDate();
 
 function bangkokDate() {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts();
   return `${parts.find((part) => part.type === 'year').value}-${parts.find((part) => part.type === 'month').value}-${parts.find((part) => part.type === 'day').value}`;
 }
-function thaiDate() { return new Intl.DateTimeFormat('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'full' }).format(new Date()); }
+function thaiDate(dateString) { 
+  const [y, m, d] = dateString.split('-');
+  return new Intl.DateTimeFormat('th-TH', { dateStyle: 'full' }).format(new Date(y, m - 1, d)); 
+}
 const label = { booked: 'รอส่ง', submitted_on_time: 'ส่งตรงเวลา', submitted_late: 'ส่งช้า', passed: 'ผ่านแล้ว', needs_improvement: 'ต้องแก้ไข', absent: 'ขาดเวร' };
 const badge = { booked: 'bg-slate-100 text-slate-600', submitted_on_time: 'bg-emerald-50 text-emerald-700', submitted_late: 'bg-rose-50 text-rose-700', passed: 'bg-teal/10 text-teal', needs_improvement: 'bg-amber-50 text-amber-800', absent: 'bg-rose-50 text-rose-700' };
 
@@ -20,17 +24,28 @@ async function signedUrl(path) {
   return data?.signedUrl || null;
 }
 
+function showLoader() { 
+  const loader = document.querySelector('#loader');
+  if (loader) { loader.classList.remove('hidden', 'opacity-0'); }
+}
+function hideLoader() {
+  const loader = document.querySelector('#loader');
+  if (loader) { loader.classList.add('opacity-0'); setTimeout(() => loader.classList.add('hidden'), 300); }
+}
+
 async function refresh() {
+  showLoader();
   const [studentsResult, dutiesResult] = await Promise.all([
     supabase.from('students').select('*').eq('classroom', current.profile.classroom).order('school_code'),
-    supabase.from('clean_duty').select('id,duty_date,status,evidence_path,submitted_at,review_reason,task_id,student_id,students(name,school_code),clean_tasks(task_name,position)').eq('duty_date', bangkokDate())
+    supabase.from('clean_duty').select('id,duty_date,status,evidence_path,submitted_at,review_reason,task_id,student_id,students(name,school_code),clean_tasks(task_name,position)').eq('duty_date', selectedDate)
   ]);
-  if (studentsResult.error || dutiesResult.error) return showError(studentsResult.error?.message || dutiesResult.error?.message);
+  if (studentsResult.error || dutiesResult.error) { hideLoader(); return showError(studentsResult.error?.message || dutiesResult.error?.message); }
   todayDuties = await Promise.all(dutiesResult.data.map(async (duty) => ({ ...duty, signedUrl: await signedUrl(duty.evidence_path) })));
   renderDashboard();
   renderDuties();
   renderMissing(studentsResult.data);
   renderRoster(studentsResult.data);
+  hideLoader();
 }
 
 function renderDashboard() {
@@ -49,8 +64,10 @@ function renderDuties() {
 }
 
 function renderMissing(students) {
-  const weekdayToken = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Bangkok', weekday: 'short' }).format(new Date());
-  const isoWeekday = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 }[weekdayToken];
+  const [y, m, d] = selectedDate.split('-');
+  const dateObj = new Date(y, m - 1, d);
+  let isoWeekday = dateObj.getDay();
+  if (isoWeekday === 0) isoWeekday = 7;
   
   const onDutyStudents = students.filter(s => s.duty_weekday === isoWeekday);
   const missingStudents = onDutyStudents.map(student => {
@@ -61,15 +78,23 @@ function renderMissing(students) {
   }).filter(Boolean);
 
   document.querySelector('#missingCount').textContent = `${missingStudents.length} คน`;
-  document.querySelector('#missingList').innerHTML = missingStudents.length 
-    ? missingStudents.map(m => `<div class="flex items-center justify-between px-5 py-4"><p class="font-bold">${m.student.name}</p><span class="text-sm font-medium ${m.statusColor}">${m.statusText}</span></div>`).join('')
-    : '<p class="px-5 py-8 text-center text-emerald-600">เยี่ยมมาก! ทุกคนจองเวรและส่งงานแล้ว</p>';
+  
+  if (isoWeekday > 5) {
+    document.querySelector('#missingList').innerHTML = '<p class="px-5 py-8 text-center text-slate-500">ไม่มีรอบเวรในวันหยุด (เสาร์-อาทิตย์)</p>';
+  } else {
+    document.querySelector('#missingList').innerHTML = missingStudents.length 
+      ? missingStudents.map(m => `<div class="flex items-center justify-between px-5 py-4"><p class="font-bold">${m.student.name}</p><span class="text-sm font-medium ${m.statusColor}">${m.statusText}</span></div>`).join('')
+      : '<p class="px-5 py-8 text-center text-emerald-600">เยี่ยมมาก! ทุกคนจองเวรและส่งงานแล้ว</p>';
+  }
 }
 
 function renderRoster(students) {
+  const dayBadge = { 1: 'bg-yellow-100 text-yellow-800', 2: 'bg-pink-100 text-pink-800', 3: 'bg-green-100 text-green-800', 4: 'bg-orange-100 text-orange-800', 5: 'bg-blue-100 text-blue-800' };
+  const dayBorder = { 1: 'border-yellow-400', 2: 'border-pink-400', 3: 'border-green-400', 4: 'border-orange-400', 5: 'border-blue-400' };
+
   document.querySelector('#studentCount').textContent = `${students.length} คน`;
-  document.querySelector('#roster').innerHTML = students.map((student, index) => `<div class="flex items-center justify-between gap-3 px-5 py-3 text-sm"><span class="font-medium">${String(index + 1).padStart(2, '0')}. ${student.name}</span><span class="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">${weekdays[student.duty_weekday - 1]}</span></div>`).join('');
-  document.querySelector('#scheduleRows').innerHTML = weekdays.map((day, index) => `<section class="border-l-4 border-teal bg-slate-50 p-4"><p class="font-bold">${day} <span class="text-sm font-normal text-slate-500">· 6 คน</span></p><p class="mt-2 text-sm leading-7">${students.filter((student) => student.duty_weekday === index + 1).map((student) => student.name).join(', ')}</p></section>`).join('');
+  document.querySelector('#roster').innerHTML = students.map((student, index) => `<div class="flex items-center justify-between gap-3 px-5 py-3 text-sm"><span class="font-medium">${String(index + 1).padStart(2, '0')}. ${student.name}</span><span class="rounded-full px-2 py-1 text-xs font-bold ${dayBadge[student.duty_weekday]}">${weekdays[student.duty_weekday - 1]}</span></div>`).join('');
+  document.querySelector('#scheduleRows').innerHTML = weekdays.map((day, index) => `<section class="border-l-4 ${dayBorder[index + 1]} bg-slate-50 p-4"><p class="font-bold">${day} <span class="text-sm font-normal text-slate-500">· 6 คน</span></p><p class="mt-2 text-sm leading-7">${students.filter((student) => student.duty_weekday === index + 1).map((student) => student.name).join(', ')}</p></section>`).join('');
 }
 
 function showError(message) { document.querySelector('#inspectionList').innerHTML = `<p class="px-5 py-6 text-rose-700">${message}</p>`; }
@@ -111,5 +136,24 @@ document.querySelector('#lightboxDialog').addEventListener('click', (e) => {
   if (e.target === document.querySelector('#lightboxDialog')) document.querySelector('#lightboxDialog').close();
 });
 
+document.querySelector('#datePicker').addEventListener('change', async (e) => {
+  if (e.target.value) {
+    selectedDate = e.target.value;
+    document.querySelector('#todayLabel').textContent = thaiDate(selectedDate);
+    await refresh();
+  }
+});
+
 current = await requireRole('teacher');
-if (current) { document.querySelector('#userName').textContent = current.profile.name; document.querySelector('#classroomName').textContent = current.profile.classroom; document.querySelector('#todayLabel').textContent = thaiDate(); document.querySelector('#logoutButton').addEventListener('click', logout); await refresh(); }
+if (current) { 
+  document.querySelector('#userName').textContent = current.profile.name; 
+  document.querySelector('#classroomName').textContent = current.profile.classroom; 
+  
+  const dateInput = document.querySelector('#datePicker');
+  dateInput.value = selectedDate;
+  dateInput.max = bangkokDate();
+  document.querySelector('#todayLabel').textContent = thaiDate(selectedDate); 
+  
+  document.querySelector('#logoutButton').addEventListener('click', logout); 
+  await refresh(); 
+}
